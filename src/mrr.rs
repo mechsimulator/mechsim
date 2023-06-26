@@ -112,22 +112,6 @@ impl MrrDeserializer {
         let length = usize::from_le_bytes(
             self.input[self.position..self.position + size_of::<usize>()].try_into()?,
         );
-        dbg!(length);
-        let vec_size = length * size_of::<E>() + size_of::<usize>();
-        let vec = deserialize(&self.input[self.position..self.position + vec_size])?;
-        self.position += vec_size;
-        Ok(vec)
-    }
-
-    fn deserialize_vec_arr<'a, T, E>(&'a mut self) -> Result<T, Box<dyn Error>>
-    where
-        T: Deserialize<'a> + AsRef<[E]>,
-        E: Deserialize<'a>,
-    {
-        let length = usize::from_le_bytes(
-            self.input[self.position..self.position + size_of::<usize>()].try_into()?,
-        ) / 3;
-        dbg!(length);
         let vec_size = length * size_of::<E>() + size_of::<usize>();
         let vec = deserialize(&self.input[self.position..self.position + vec_size])?;
         self.position += vec_size;
