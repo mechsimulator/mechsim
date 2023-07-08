@@ -1,10 +1,15 @@
+use bevy::render::mesh;
+use bevy::render::render_resource::PrimitiveTopology;
 use serde::Deserialize;
-use std::error::Error;
+use std::ffi::OsStr;
+use std::path::PathBuf;
+use std::{error::Error, path::Path};
 use std::fmt;
 use std::mem::size_of;
 use std::fmt::Display;
+use std::sync::Arc;
 
-use bevy::math::{DQuat, DVec3};
+use bevy::{math::{DQuat, DVec3}, prelude::*};
 use bincode::{self, deserialize};
 
 #[derive(Debug, Deserialize)]
@@ -34,13 +39,13 @@ struct NativeDQuat {
 
 #[derive(Debug, Deserialize)]
 #[repr(C, packed)]
-pub struct NativePose(NativeDVec3, NativeDQuat);
+struct NativePose(NativeDVec3, NativeDQuat);
 
 #[derive(Debug)]
-pub struct Pose(DVec3, DQuat);
+pub struct Pose(pub DVec3, pub DQuat);
 
 #[derive(Debug)]
-pub struct Joint(JointType, Pose);
+pub struct Joint(pub JointType, pub Pose);
 
 #[derive(Debug)]
 pub struct Body {
@@ -60,10 +65,18 @@ pub struct Part {
     pub bodies: Vec<Body>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Resource, Default)]
 pub struct Assembly {
     pub joints: Vec<Joint>,
     pub parts: Vec<Part>,
+}
+
+impl Assembly {
+    pub fn body_count(&self) -> usize {
+        self.parts.iter()
+        .map(|parts| parts.bodies.iter().count())
+        .fold(0, |acc, count| acc + count)
+    }
 }
 
 pub struct MrrDeserializer {
@@ -91,7 +104,7 @@ impl Display for MrrError {
 impl Error for MrrError {}
 
 impl MrrDeserializer {
-    pub fn load(path: &str) -> std::io::Result<Self> {
+    pub fn load(path: &Path) -> std::io::Result<Self> {
         Ok(Self {
             input: std::fs::read(path)?,
             position: 0,
@@ -186,5 +199,51 @@ impl MrrDeserializer {
         }
 
         Ok(assembly)
+    }
+}
+
+#[derive(Resource, Default)]
+pub struct AssemblyMetadata {
+    pub file_path: PathBuf,
+}
+
+impl AssemblyMetadata {
+    pub fn get_name(&self) -> &str {
+        self.file_path.file_stem().unwrap_or_else(|| OsStr::new("Unnamed")).to_str().unwrap_or_else(|| "[INVALID UTF-8]")
+    }
+}
+
+#[derive(Resource, Default)]
+pub struct AssemblyMeshes {
+    pub meshes: Vec<Mesh>,
+}
+
+impl AssemblyMeshes {
+    pub fn load_meshes(&mut self, assembly: &Assembly) {
+        let mesh_count = assembly.body_count();
+        self.meshes = Vec::with_capacity(mesh_count);
+
+        for part in &assembly.parts {
+            for body in &part.bodies {
+                let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
+
+                mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, body.verticies.chunks(3).map(|v| [v[0] / 6., v[1] / 6., v[2] / 6.]).collect::<Vec<[f32; 3]>>());
+                mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, body.verticies.chunks(3).map(|v| [v[0], v[1], v[2]]).collect::<Vec<[f32; 3]>>());
+                mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, body.uvs.chunks(2).map(|v| [v[0], v[1]]).collect::<Vec<[f32; 2]>>());
+                mesh.set_indices(Some(mesh::Indices::U32(body.indicies.iter().map(|&x| x as u32).collect())));
+
+                self.meshes.push(mesh);
+            } 
+        }
+    }
+}
+
+pub struct MrrPlugin;
+
+impl Plugin for MrrPlugin {
+    fn build(&self, app: &mut App) {
+        app.init_resource::<Assembly>()
+        .init_resource::<AssemblyMeshes>()
+        .init_resource::<AssemblyMetadata>();
     }
 }
