@@ -9,6 +9,9 @@ use std::mem::size_of;
 use std::fmt::Display;
 use std::sync::Arc;
 
+use anyhow::{Result, bail, Context};
+use thiserror::Error;
+
 use bevy::{math::{DQuat, DVec3}, prelude::*};
 use bincode::{self, deserialize};
 
@@ -69,6 +72,8 @@ pub struct Part {
 pub struct Assembly {
     pub joints: Vec<Joint>,
     pub parts: Vec<Part>,
+    pub meshes: Vec<Mesh>,
+    pub file_path: PathBuf,
 }
 
 impl Assembly {
@@ -84,46 +89,35 @@ pub struct MrrDeserializer {
     position: usize,
 }
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum MrrError {
+    #[error("Format signature not found")]
     FormatSigNotFound,
 }
 
-impl Display for MrrError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                MrrError::FormatSigNotFound => "format signature not found",
-            }
-        )
-    }
-}
-
-impl Error for MrrError {}
-
 impl MrrDeserializer {
-    pub fn load(path: &Path) -> std::io::Result<Self> {
+    pub fn load(path: &Path) -> Result<Self> {
         Ok(Self {
             input: std::fs::read(path)?,
             position: 0,
         })
     }
 
-    fn deserialize_value<'a, T: Deserialize<'a>>(&'a mut self) -> Result<T, Box<dyn Error>> {
+    fn deserialize_value<'a, T: Deserialize<'a>>(&'a mut self) -> Result<T> {
         let data = &self.input[self.position..self.position + size_of::<T>()];
         self.position += size_of::<T>();
         Ok(deserialize(data)?)
     }
 
-    fn deserialize_vec<'a, T, E>(&'a mut self) -> Result<T, Box<dyn Error>>
+    fn deserialize_vec<'a, T, E>(&'a mut self) -> Result<T>
     where
         T: Deserialize<'a> + AsRef<[E]>,
         E: Deserialize<'a>,
     {
         let length = usize::from_le_bytes(
-            self.input[self.position..self.position + size_of::<usize>()].try_into()?,
+            self.input[self.position..self.position + size_of::<usize>()]
+            .try_into()
+            .with_context(|| "In reading length of vec")?,
         );
         let vec_size = length * size_of::<E>() + size_of::<usize>();
         let vec = deserialize(&self.input[self.position..self.position + vec_size])?;
@@ -131,15 +125,16 @@ impl MrrDeserializer {
         Ok(vec)
     }
 
-    pub fn deserialize_assembly(&mut self) -> Result<Assembly, Box<dyn Error>> {
+    pub fn deserialize_assembly(&mut self) -> Result<Assembly> {
         let format_sig = "MRR (MechSim Robot Representation)";
         let mut assembly = Assembly {
             joints: vec![],
             parts: vec![],
+            ..Default::default()
         };
 
         if !self.input.starts_with(format_sig.as_bytes()) {
-            return Err(Box::new(MrrError::FormatSigNotFound));
+            bail!(MrrError::FormatSigNotFound)
         }
 
         self.position += format_sig.len();
@@ -202,28 +197,12 @@ impl MrrDeserializer {
     }
 }
 
-#[derive(Resource, Default)]
-pub struct AssemblyMetadata {
-    pub file_path: PathBuf,
-}
-
-impl AssemblyMetadata {
-    pub fn get_name(&self) -> &str {
-        self.file_path.file_stem().unwrap_or_else(|| OsStr::new("Unnamed")).to_str().unwrap_or_else(|| "[INVALID UTF-8]")
-    }
-}
-
-#[derive(Resource, Default)]
-pub struct AssemblyMeshes {
-    pub meshes: Vec<Mesh>,
-}
-
-impl AssemblyMeshes {
-    pub fn load_meshes(&mut self, assembly: &Assembly) {
-        let mesh_count = assembly.body_count();
+impl Assembly {
+    pub fn load_meshes(&mut self) {
+        let mesh_count = self.body_count();
         self.meshes = Vec::with_capacity(mesh_count);
 
-        for part in &assembly.parts {
+        for part in &self.parts {
             for body in &part.bodies {
                 let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
 
@@ -236,14 +215,16 @@ impl AssemblyMeshes {
             } 
         }
     }
+
+    pub fn get_name(&self) -> &str {
+        self.file_path.file_stem().unwrap_or_else(|| OsStr::new("Unnamed")).to_str().unwrap_or_else(|| "[INVALID UTF-8]")
+    }
 }
 
 pub struct MrrPlugin;
 
 impl Plugin for MrrPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<Assembly>()
-        .init_resource::<AssemblyMeshes>()
-        .init_resource::<AssemblyMetadata>();
+        app.init_resource::<Assembly>();
     }
 }
