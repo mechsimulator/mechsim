@@ -14,6 +14,8 @@ In the menu bar, go to `File > Import robot from Onshape`. You will then go to t
 
 **IMPORTANT:** **Do not** share your keys with anyone else and do not store them in an insecure location where others can easily find.
 
+**TIP:** It is highly recommended that you supress small hardware parts such as nuts and bolts. This will tell the exporter to ignore those parts while exporting, which will significantly increase simulation performance.
+
 > This feature is currently using a custom made [API client](https://github.com/mechsimulator/onshape-mjcf-exporter) to translate Onshape assemblies into XML-formatted MJCF models.
 
 ## From Fusion 360
