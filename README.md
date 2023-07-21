@@ -2,7 +2,7 @@
 
 > 🚧 This project is currently under heavy development and is not in a usable state. 🚧
 
-A 3D robot visualizer, physics simulator, and robot code verification tool.
+A 3D robot visualizer, physics simulator, and robot code verification tool. _Start iterating and programming your robot from week one._
 
 # Importing robots
 
@@ -23,3 +23,20 @@ A Fusion 360 add-in is planned for the future.
 ## From any other CAD program
 
 Plugins and tools will need to be made specific for those programs. However, in the meantime, you can export your robot as a `STEP` and import it into Fusion 360 or Onshape. From there you will need to remake all of the joints and ground/fix the assembly.
+
+- - - - 
+
+# Current Plans
+
+- Exporting robots from Onshape and Fusion 360
+- Physics engine integration to simulate robot models
+- Joint characterization to increase simulation accuracy (Tune joint properties to behave like real bearings, gears, etc.)
+
+# Future Plans
+
+- Robot code integration
+- Electrical configuration (CAN, PWM, motors, motor controllers, IMUs, encoders, etc.)
+- Mechanical configuration (custom mechanisms)
+- Soft body components like belts, cables, and game pieces
+- Force heat map to indicate where the most stress is being applied and to predict which parts are more likely to break
+- Vision simulation
