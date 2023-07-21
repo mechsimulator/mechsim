@@ -12,9 +12,9 @@ In order to properly simulate a robot, a robot must be translated from an existi
 
 In the menu bar, go to `File > Import robot from Onshape`. You will then go to the Onshape developer portal and generate API keys. Copy and paste the keys into the popup window in MechSim. These keys allow MechSim to access your Onshape account and generate the MJCF format for MechSim to use. In addition, MechSim needs to know which assembly you want to be exported, so open the assembly your robot is in and copy and paste the Onshape URL from the browser into MechSim. Make sure the document you open is an assembly.
 
-> **IMPORTANT:** **Do not** share your keys with anyone else and do not store them in an insecure location where others can easily find.
+**IMPORTANT:** **Do not** share your keys with anyone else and do not store them in an insecure location where others can easily find.
 
-This feature is currently using a custom made [API client](https://github.com/mechsimulator/onshape-mjcf-exporter) to translate Onshape assemblies into XML-formatted MJCF models.
+> This feature is currently using a custom made [API client](https://github.com/mechsimulator/onshape-mjcf-exporter) to translate Onshape assemblies into XML-formatted MJCF models.
 
 ## From Fusion 360
 
