@@ -1,5 +1,7 @@
 # MechSim
 
+> 🚧 This project is currently under heavy development and is not in a usable state. 🚧
+
 A 3D robot visualizer, physics simulator, and robot code verification tool.
 
 # Importing robots
